@@ -1,28 +1,8 @@
 @import "tailwindcss";
 
-.marquee-frame {
-  position: relative;
-  padding: 2rem;
-  border-radius: 20px;
-  background: #b31217; /* inner background */
-  color: white;
-  text-align: center;
-  font-size: 1.5rem;
-}
-
-/* glowing bulbs around the border */
-.marquee-frame::before {
-  content: "";
-  position: absolute;
-  inset: -12px; /* closer to the box */
-  border-radius: 20px;
-  background:
-    repeating-radial-gradient(circle, gold, gold 2px, transparent 4px) top,
-    repeating-radial-gradient(circle, gold, gold 2px, transparent 4px) bottom,
-    repeating-radial-gradient(circle, gold, gold 2px, transparent 4px) left,
-    repeating-radial-gradient(circle, gold, gold 2px, transparent 4px) right;
-  background-size: 30px 12px, 30px 12px, 12px 30px, 12px 30px;
-  background-repeat: repeat-x, repeat-x, repeat-y, repeat-y;
-  filter: drop-shadow(0 0 5px gold) drop-shadow(0 0 10px orange);
-  pointer-events: none;
+#question {
+    font-weight: 900;
+    font-size: xxx-large;
+    color: white;
+    -webkit-text-stroke: 2px gold;
 }

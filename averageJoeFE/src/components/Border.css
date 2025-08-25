@@ -1,58 +1,14 @@
+:root{
+  --blub-size : 20px;
+  --border-color : #c22404;
+}
+
 .frame {
-  position: relative;
-  display: inline-block;
-  padding: 2rem;
-  background: #b31217; /* inner background */
-  border-radius: 20px;
-}
-
-.content {
-  position: relative;
-  z-index: 1;
-  color: white;
-  font-size: 1.5rem;
-  text-align: center;
-}
-
-/* shared bulb strip style */
-.bulbs {
-  position: absolute;
-  background-image: radial-gradient(circle, gold 70%, transparent 72%);
-  background-size: 40px 40px; /* spacing of bulbs */
-  background-repeat: repeat;
-  filter: drop-shadow(0 0 5px gold) drop-shadow(0 0 10px orange);
-  pointer-events: none;
-}
-
-/* sides */
-.bulbs.top {
-  top: -20px;
-  left: 0;
-  right: 0;
-  height: 20px;
-  background-repeat: repeat-x;
-}
-
-.bulbs.bottom {
-  bottom: -20px;
-  left: 0;
-  right: 0;
-  height: 20px;
-  background-repeat: repeat-x;
-}
-
-.bulbs.left {
-  top: 0;
-  bottom: 0;
-  left: -20px;
-  width: 20px;
-  background-repeat: repeat-y;
-}
-
-.bulbs.right {
-  top: 0;
-  bottom: 0;
-  right: -20px;
-  width: 20px;
-  background-repeat: repeat-y;
+  width: 80%;
+  aspect-ratio: 1217/729;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-image: url("../assets/frame.png");
+  background-size: cover;
 }
