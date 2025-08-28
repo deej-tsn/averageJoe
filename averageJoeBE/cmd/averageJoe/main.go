@@ -1,12 +1,11 @@
 package main
 
 import (
-	"net/http"
 	"os"
 	"path/filepath"
-	"strconv"
 
 	"github.com/deej-tsn/averageJoe/model"
+	"github.com/deej-tsn/averageJoe/routes"
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
 )
@@ -22,13 +21,13 @@ func main() {
 
 	data := model.LoadData(data_bytes)
 
-	game := model.NewGame(data.GetRandomRound())
+	gameMgr := model.NewGM()
+
+	routesGM := routes.NewGameMgrController(gameMgr, data)
 
 	server := echo.New()
 
-	server.Use(middleware.LoggerWithConfig(middleware.LoggerConfig{
-		Format: "method=${method}, uri=${uri}, status=${status} body=${custom}\n",
-	}))
+	server.Use(middleware.Logger())
 
 	// DEV ONLY
 	server.Use(middleware.CORSWithConfig(middleware.CORSConfig{
@@ -36,30 +35,13 @@ func main() {
 		AllowHeaders: []string{echo.HeaderOrigin, echo.HeaderContentType, echo.HeaderAccept},
 	}))
 
-	server.GET("/", func(c echo.Context) error {
-		round := game.CurrentRound
-		return c.JSON(http.StatusAccepted, map[string]any{"question": round.Question, "options": round.Options})
-	})
+	server.GET("/user", routes.GET_newPlayerUUID)
 
-	server.GET("/next-round", func(c echo.Context) error {
-		game.CurrentRound = data.GetRandomRound()
-		round := game.CurrentRound
-		return c.JSON(http.StatusAccepted, map[string]any{"question": round.Question, "options": round.Options})
-	})
+	server.GET("/active-games", routesGM.GET_activeGames)
 
-	server.POST("/", func(c echo.Context) error {
-		choice := c.FormValue("choice")
-		index, err := strconv.Atoi(choice)
-		if err != nil {
-			return c.JSON(http.StatusBadRequest, map[string]string{"error": "invalid choice"})
-		}
-		game.CurrentRound.Votes[index] += 1
-		output := make(map[string]int)
-		for index, option := range game.CurrentRound.Options {
-			output[option] = game.CurrentRound.Votes[index]
-		}
-		return c.JSON(http.StatusAccepted, output)
-	})
+	server.POST("/connect-to-game", routesGM.POST_connectToGame)
+
+	server.POST("/create-game", routesGM.POST_createGame)
 
 	server.Logger.Fatal(server.Start(":8080"))
 }
