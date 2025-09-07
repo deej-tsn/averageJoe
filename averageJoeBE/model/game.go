@@ -6,6 +6,7 @@ import (
 	"math/rand/v2"
 
 	"github.com/deej-tsn/averageJoe/util"
+	"github.com/gorilla/websocket"
 )
 
 type GameMgr struct {
@@ -18,6 +19,7 @@ type Game struct {
 	CurrentRound   *Round
 	PreviousRounds []*Round
 	State          util.GameState
+	Connections    map[*websocket.Conn]bool
 }
 
 type Player struct {
@@ -36,6 +38,7 @@ type Round struct {
 	Question string   `json:"question"`
 	Options  []string `json:"options"`
 	Votes    []int
+	State    util.RoundState
 }
 
 type Data []Round
@@ -52,6 +55,7 @@ func (gm *GameMgr) NewGameFromCode(gameCode string, round *Round) *Game {
 		Players:      make(map[string]*PlayerGameRecord),
 		CurrentRound: round,
 		State:        util.Lobby,
+		Connections:  make(map[*websocket.Conn]bool),
 	}
 
 	gm.Games[game.GameID] = game

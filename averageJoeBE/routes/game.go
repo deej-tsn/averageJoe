@@ -1,6 +1,7 @@
 package routes
 
 import (
+	"fmt"
 	"net/http"
 
 	"github.com/deej-tsn/averageJoe/model"
@@ -15,6 +16,10 @@ type ConnectRequest struct {
 
 type CreateGameRequest struct {
 	PlayerGameCode string `json:"playerGameCode"`
+}
+
+type StartGameRequest struct {
+	GameID string `json:"gameID"`
 }
 
 type GameMgrController struct {
@@ -71,4 +76,21 @@ func GET_newPlayerUUID(c echo.Context) error {
 	playerUUID := uuid.NewString()
 
 	return c.JSON(http.StatusAccepted, map[string]string{"uuid": playerUUID})
+}
+
+// PUT("/start-game")
+func (gmc *GameMgrController) PUT_startGame(c echo.Context) error {
+	var body StartGameRequest
+	if err := c.Bind(&body); err != nil {
+		c.Echo().StdLogger.Printf("ERROR: %s\n", err.Error())
+		return c.JSON(http.StatusBadRequest, map[string]string{"error": "could not read request"})
+	}
+
+	err := gmc.gm.StartGame(body.GameID)
+	if err != nil {
+		c.Echo().StdLogger.Printf("ERROR: %s\n", err.Error())
+		return c.JSON(http.StatusBadRequest, map[string]string{"error": err.Error()})
+	}
+
+	return c.String(http.StatusAccepted, fmt.Sprintf("game ID-%s started sussessfully", body.GameID))
 }

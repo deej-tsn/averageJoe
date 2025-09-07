@@ -39,9 +39,11 @@ func main() {
 
 	server.GET("/active-games", routesGM.GET_activeGames)
 
-	server.POST("/connect-to-game", routesGM.POST_connectToGame)
+	server.GET("/connect-to-game", routesGM.WS_handler)
 
 	server.POST("/create-game", routesGM.POST_createGame)
+
+	server.PUT("/start-game", routesGM.PUT_startGame)
 
 	server.Logger.Fatal(server.Start(":8080"))
 }
