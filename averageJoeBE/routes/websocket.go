@@ -1,11 +1,17 @@
 package routes
 
 import (
+	"encoding/json"
 	"net/http"
 
 	"github.com/gorilla/websocket"
 	"github.com/labstack/echo/v4"
 )
+
+type websocketResponse struct {
+	MessageType string                 `json:"messageType"`
+	Data        map[string]interface{} `json:"data"`
+}
 
 var upgrader = websocket.Upgrader{
 	CheckOrigin: func(r *http.Request) bool { return true },
@@ -42,8 +48,14 @@ func (gmc *GameMgrController) WS_handler(c echo.Context) error {
 				return
 			}
 			// Handle incoming messages (answers, ready, etc.)
-			println("Message:", string(msg))
-			gmc.broadcast(gameID, websocket.TextMessage, msg)
+			err, data := parseMsg(msg)
+			if err != nil {
+				print("invalid format of message")
+				print(string(msg))
+				conn.WriteMessage(websocket.TextMessage, []byte("invalid message sent"))
+			}
+			print(data)
+
 		}
 	}()
 
@@ -57,4 +69,38 @@ func (gmc *GameMgrController) broadcast(gameID string, messageType int, message 
 			delete(gmc.gm.Games[gameID].Connections, client)
 		}
 	}
+}
+
+func parseMsg(msg []byte) (error, *websocketResponse) {
+	var jsonMessage websocketResponse
+	if err := json.Unmarshal(msg, &jsonMessage); err != nil {
+		return err, nil
+	}
+	return nil, &jsonMessage
+}
+
+/*
+	{
+		messageType : AUTH
+		playerToken : xyz123
+	}
+*/
+func (gmc *GameMgrController) authenicatePlayer(gameID string, msg []byte) {
+
+}
+
+/*
+	{
+		messageType : CHOICE
+		playerToken : xyz123,
+		round : a,
+		option : 1
+	}
+*/
+func (gmc *GameMgrController) readOptionChoose(gameID string, msg []byte) {
+
+}
+
+func (gmc *GameMgrController) broadcastRound(gameID string) {
+
 }
