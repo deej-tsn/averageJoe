@@ -1,21 +1,22 @@
+import type { RefObject } from "react"
 
 interface Props {
     choice : String
-    index : number
+    websocketRef : RefObject<WebSocket|null>
 }
 
 
 
-export default function ChoiceComp({choice, index }:Props) {
+export default function ChoiceComp({choice, websocketRef }:Props) {
     
     function handleOnClick(event : React.MouseEvent) {
         event.preventDefault()
-        const form = new FormData()
-        form.append('choice', String(index))
-        fetch('http://localhost:8080', {
-            method : 'POST',
-            body : form
-        }).then((response) => console.log(response))
+        websocketRef.current?.send(JSON.stringify({
+            messageType : "VOTE",
+            data: {
+                choice : choice
+            }
+        }))
     }
 
 

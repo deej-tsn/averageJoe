@@ -35,10 +35,10 @@ type PlayerGameRecord struct {
 }
 
 type Round struct {
-	Question string   `json:"question"`
-	Options  []string `json:"options"`
-	Votes    []int
-	State    util.RoundState
+	Question string          `json:"question"`
+	Options  []string        `json:"options"`
+	Votes    []int           `json:"votes"`
+	State    util.RoundState `json:"state"`
 }
 
 type Data []Round

@@ -1,16 +1,23 @@
 package main
 
 import (
+	"net/http"
 	"os"
 	"path/filepath"
 
+	"github.com/deej-tsn/averageJoe/config"
 	"github.com/deej-tsn/averageJoe/model"
 	"github.com/deej-tsn/averageJoe/routes"
+	"github.com/deej-tsn/averageJoe/util"
+	"github.com/golang-jwt/jwt/v5"
+	echojwt "github.com/labstack/echo-jwt/v4"
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
 )
 
 func main() {
+
+	cfg := config.LoadConfig()
 
 	data_path, _ := filepath.Abs("../data/questions.json")
 
@@ -24,6 +31,7 @@ func main() {
 	gameMgr := model.NewGM()
 
 	routesGM := routes.NewGameMgrController(gameMgr, data)
+	routesJWT := routes.NewJWTController(cfg)
 
 	server := echo.New()
 
@@ -32,18 +40,36 @@ func main() {
 	// DEV ONLY
 	server.Use(middleware.CORSWithConfig(middleware.CORSConfig{
 		AllowOrigins: []string{"http://localhost:5173"},
-		AllowHeaders: []string{echo.HeaderOrigin, echo.HeaderContentType, echo.HeaderAccept},
+		AllowHeaders: []string{echo.HeaderOrigin, echo.HeaderContentType, echo.HeaderAccept, echo.HeaderAuthorization},
 	}))
 
-	server.GET("/user", routes.GET_newPlayerUUID)
+	restricted := server.Group("/games")
 
-	server.GET("/active-games", routesGM.GET_activeGames)
+	// USER LOGIN
 
-	server.GET("/connect-to-game", routesGM.WS_handler)
+	server.POST("/user", routesJWT.POST_user)
 
-	server.POST("/create-game", routesGM.POST_createGame)
+	server.POST("/verify-user", routesJWT.POST_verifyUser)
 
-	server.PUT("/start-game", routesGM.PUT_startGame)
+	restricted_config := echojwt.Config{
+		NewClaimsFunc: func(c echo.Context) jwt.Claims {
+			return new(util.JWT_CustomClaim)
+		},
+		SigningKey: cfg.JWTSecret,
+		ErrorHandler: func(c echo.Context, err error) error {
+			return c.JSON(http.StatusForbidden, util.ErrorMessage("Invalid JWT token"))
+		},
+	}
+	restricted.Use(util.ExtractWebsocketToken)
+	restricted.Use(echojwt.WithConfig(restricted_config))
+
+	// GAME ROUTES
+
+	restricted.GET("/connect-to-game", routesGM.WS_handler)
+
+	restricted.POST("/create-game", routesGM.POST_createGame)
+
+	restricted.GET("/active-games", routesGM.GET_activeGames)
 
 	server.Logger.Fatal(server.Start(":8080"))
 }
