@@ -70,7 +70,7 @@ func (gmc *GameMgrController) PUT_startGame(c echo.Context) error {
 		return c.JSON(http.StatusBadRequest, map[string]string{"error": "could not read request"})
 	}
 
-	err := gmc.gm.StartGame(body.GameID)
+	err := gmc.gm.StartGame(body.GameID, gmc.data)
 	if err != nil {
 		c.Echo().StdLogger.Printf("ERROR: %s\n", err.Error())
 		return c.JSON(http.StatusBadRequest, map[string]string{"error": err.Error()})

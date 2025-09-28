@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"math/rand/v2"
+	"sync"
 
 	"time"
 
@@ -19,7 +20,6 @@ type GameMgr struct {
 
 type Game struct {
 	GameID         string
-	Players        map[*Player]*PlayerGameRecord
 	CurrentRound   *Round
 	PreviousRounds []*Round
 	State          util.GameState
@@ -32,17 +32,11 @@ type Player struct {
 	Conn     *websocket.Conn
 }
 
-type PlayerGameRecord struct {
-	Score   int
-	Live    bool
-	Answers []string
-}
-
 type Round struct {
 	Question string   `json:"question"`
 	Options  []string `json:"options"`
 	Votes    []int    `json:"votes"`
-	hasVoted map[*Player]bool
+	hasVoted map[*websocket.Conn]int
 	State    util.RoundState `json:"state"`
 }
 
@@ -71,7 +65,6 @@ func (gm *GameMgr) NewGameFromCode(gameCode string, round *Round) *Game {
 	}
 	game := &Game{
 		GameID:         gameCode,
-		Players:        make(map[*Player]*PlayerGameRecord),
 		CurrentRound:   round,
 		State:          util.Lobby,
 		PreviousRounds: make([]*Round, 0),
@@ -110,7 +103,7 @@ func (gm *GameMgr) NewGame(playerGameCode string, round *Round) (*Game, error) {
 	return game, nil
 }
 
-func (gm *GameMgr) StartGame(gameID string) error {
+func (gm *GameMgr) StartGame(gameID string, data *Data) error {
 	game, exists := gm.Games[gameID]
 	if !exists {
 		return fmt.Errorf("game not found")
@@ -120,6 +113,29 @@ func (gm *GameMgr) StartGame(gameID string) error {
 	}
 	game.State = util.Running
 	game.Connections.BroadcastJSON("Game Started", map[string]string{gameID: "running"})
+	log.Default().Println(len(game.PreviousRounds))
+	log.Default().Println("Test")
+	go func() {
+		for {
+			if len(game.Connections) == 0 {
+				return
+			}
+			if len(game.Connections) == 1 && len(game.PreviousRounds) > 0 {
+				game.Connections.BroadcastJSON("GAME-END", map[string]any{})
+				for player := range game.Connections {
+					player.Close()
+				}
+				return
+			}
+			log.Default().Println("Checking if to start new round")
+			if game.CurrentRound.State == util.RoundFinished {
+				gm.StartRound(game.GameID, data)
+				log.Default().Println("Waiting for round to end")
+				time.Sleep(10 * time.Second)
+			}
+			time.Sleep(1 * time.Second)
+		}
+	}()
 	return nil
 }
 
@@ -139,6 +155,13 @@ func (gm *GameMgr) StartRound(gameID string, data *Data) error {
 	round := data.GetRandomRound()
 	round.State = util.Voting
 	log.Default().Println("Starting new round")
+	// TODO remove generated random Responses
+	// generates random response
+	log.Default().Println("Simulating Random Votes")
+	for index := range len(round.Votes) {
+		round.Votes[index] = rand.IntN(100)
+	}
+
 	game.PreviousRounds = append(game.PreviousRounds, game.CurrentRound)
 	game.CurrentRound = round
 	log.Default().Println("Broadcast new round")
@@ -158,15 +181,70 @@ func (rT *RoundTimer) startRoundTimer(round *Round, conns Connections) {
 			case <-rT.ticker.C:
 				remaining := time.Until(endTime)
 				fmt.Printf("Tick : %v\n", remaining)
-				conns.BroadcastJSON("Round-Timer", map[string]time.Duration{"time-left": time.Duration(remaining.Seconds())})
+				if remaining >= time.Second {
+					conns.BroadcastJSON("Round-Timer", map[string]time.Duration{"time-left": time.Duration(remaining.Seconds())})
+				}
 			case <-rT.timer.C:
 				fmt.Println("Timer Done")
 				round.State = util.Calculating
 				conns.BroadcastJSON("Round-End", map[string]string{"round-state": "end"})
+				round.calculateRound(conns)
 				return
 			}
 		}
 	}()
+}
+
+func roundEndResponse(roundData map[string]string, outcomeText string) map[string]any {
+	response := map[string]any{
+		"messageType": "Round-Results",
+		"data": map[string]any{
+			"outcome":   outcomeText,
+			"roundData": roundData,
+		},
+	}
+	return response
+}
+
+func incorrectOption(player *websocket.Conn, response map[string]any, conns Connections) {
+	player.WriteJSON(response)
+	player.WriteMessage(websocket.TextMessage, []byte("Thanks for playing"))
+	player.Close()
+	delete(conns, player)
+}
+
+func (r *Round) calculateRound(conns Connections) {
+	var wG sync.WaitGroup
+	output := map[string]string{}
+	maxCount := r.Votes[0]
+	maxIndex := 0
+
+	for index, option := range r.Options {
+		output[option] = fmt.Sprint(r.Votes[index])
+		if r.Votes[index] > maxCount {
+			maxCount = r.Votes[index]
+			maxIndex = index
+		}
+	}
+
+	incorrectOptionResponse := roundEndResponse(output, "Unlucky")
+	correctOptionResponse := roundEndResponse(output, "Lucky")
+	didntVoteResponse := roundEndResponse(output, "Next Time, try voting faster")
+	for player := range conns {
+		wG.Go(func() {
+			voteIndex, ok := r.hasVoted[player]
+			if !ok {
+				incorrectOption(player, didntVoteResponse, conns)
+			}
+			if voteIndex != maxIndex {
+				incorrectOption(player, incorrectOptionResponse, conns)
+			} else {
+				player.WriteJSON(correctOptionResponse)
+			}
+		})
+	}
+	wG.Wait()
+	r.State = util.RoundFinished
 }
 
 func (game *Game) BroadcastRound() {
@@ -197,11 +275,11 @@ func (round *Round) VoteInRound(player *Player, optionIndex int) error {
 	if optionIndex < 0 || optionIndex >= len(round.Options) {
 		return errors.New("invalid Option Index")
 	}
-	if _, ok := round.hasVoted[player]; ok {
+	if _, ok := round.hasVoted[player.Conn]; ok {
 		return fmt.Errorf("player %s has already voted", player.PlayerID)
 	}
 	round.Votes[optionIndex] += 1
-	round.hasVoted[player] = true
+	round.hasVoted[player.Conn] = optionIndex
 	client := player.Conn
 	if err := client.WriteJSON(map[string]any{"messageType": "vote-received", "data": optionIndex}); err != nil {
 		client.Close()
@@ -228,7 +306,7 @@ func (d *Data) GetRandomRound() *Round {
 		Question: round.Question,
 		Options:  round.Options,
 		Votes:    make([]int, len(round.Options)),
-		hasVoted: make(map[*Player]bool),
+		hasVoted: make(map[*websocket.Conn]int),
 		State:    util.RoundFinished,
 	}
 	return roundDeepCopy

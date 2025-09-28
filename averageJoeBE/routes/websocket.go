@@ -81,11 +81,6 @@ func (gmc *GameMgrController) WS_handler(c echo.Context) error {
 		PlayerID: claim.Name,
 		Conn:     conn,
 	}
-	game.Players[player] = &model.PlayerGameRecord{
-		Score:   0,
-		Live:    true,
-		Answers: []string{},
-	}
 
 	// Example: listen for messages
 	go func() {
@@ -116,10 +111,6 @@ func (gmc *GameMgrController) WS_handler(c echo.Context) error {
 	return nil
 }
 
-func (gmc *GameMgrController) voteInRound(player *model.Player, gameID string, index int) {
-	gmc.gm.Games[gameID].CurrentRound.VoteInRound(player, index)
-}
-
 func parseMsg(msg []byte) (*websocketResponse, error) {
 	var jsonMessage websocketResponse
 	if err := json.Unmarshal(msg, &jsonMessage); err != nil {
@@ -136,7 +127,7 @@ func (gmc *GameMgrController) messageTypeToDataStruct(gameID string, player *mod
 
 	switch wsR.MessageType {
 	case "START-GAME":
-		if err := gmc.gm.StartGame(gameID); err != nil {
+		if err := gmc.gm.StartGame(gameID, gmc.data); err != nil {
 			return err
 		}
 	case "START-ROUND":
@@ -148,7 +139,9 @@ func (gmc *GameMgrController) messageTypeToDataStruct(gameID string, player *mod
 		if err := mapstructure.Decode(wsR.Data, &resp); err != nil {
 			return errors.New("incorrect vote format")
 		}
-		gmc.voteInRound(player, gameID, resp.choiceIndex)
+		if err := gmc.gm.Games[gameID].CurrentRound.VoteInRound(player, resp.choiceIndex); err != nil {
+			return err
+		}
 	default:
 		return errors.New("unknown messageType found")
 	}
