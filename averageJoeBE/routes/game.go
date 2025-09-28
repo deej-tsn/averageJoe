@@ -40,22 +40,6 @@ func (gmc *GameMgrController) GET_activeGames(c echo.Context) error {
 	return c.JSON(http.StatusAccepted, games)
 }
 
-// POST("/connect-to-game")
-func (gmc *GameMgrController) POST_connectToGame(c echo.Context) error {
-	var body ConnectRequest
-	if err := c.Bind(&body); err != nil {
-		c.Echo().StdLogger.Printf("ERROR: could not bind request body to controller\n")
-		return c.JSON(http.StatusBadRequest, map[string]string{"error": "could not read request"})
-	}
-
-	if _, err := gmc.gm.JoinGame(body.GameID, body.PlayerID); err != nil {
-		c.Echo().StdLogger.Printf("ERROR: %s\n", err.Error())
-		return c.JSON(http.StatusBadRequest, map[string]string{"error": err.Error()})
-	}
-
-	return c.String(http.StatusAccepted, body.GameID)
-}
-
 // POST("/create-game")
 func (gmc *GameMgrController) POST_createGame(c echo.Context) error {
 	var body CreateGameRequest

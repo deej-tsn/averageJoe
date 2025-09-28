@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import './App.css'
 import Border from './components/Border'
 import ChoiceComp from './components/Choice'
@@ -45,7 +45,7 @@ function App() {
       }).then((response) => response.json()).then((data : Record<string, string>) => setGames(data))
     }
 
-    function joinGame(){
+  function joinGame(){
     webSocketRef.current = new WebSocket(`ws://localhost:8080/games/connect-to-game?gameID=${game}`,
       `AuthToken-${userID}`
     )
@@ -95,7 +95,7 @@ function App() {
         </div>
       </Border>
       <Border>
-        {round?.roundData.options.map((choiceStr, index) => <ChoiceComp key={index} choice={choiceStr} websocketRef={webSocketRef}/> )}
+        {round?.roundData.options.map((choiceStr, index) => <ChoiceComp key={index} choice={choiceStr} index={index} websocketRef={webSocketRef}/> )}
       </Border>
 
     </div>

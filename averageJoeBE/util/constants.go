@@ -1,5 +1,7 @@
 package util
 
+import "time"
+
 type GameState int
 
 const (
@@ -21,9 +23,9 @@ func (gs GameState) String() string {
 type RoundState int
 
 const (
-	Voting RoundState = iota
+	RoundFinished RoundState = iota
+	Voting
 	Calculating
-	RoundFinished
 )
 
 var RoundStateMap = map[RoundState]string{
@@ -35,3 +37,9 @@ var RoundStateMap = map[RoundState]string{
 func (rs RoundState) String() string {
 	return RoundStateMap[rs]
 }
+
+// 10 second round duration
+const ROUND_DURATION = time.Second * 10
+
+// 1 second broadcast
+const ROUND_CLICK_RATE = time.Second

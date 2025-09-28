@@ -1,20 +1,21 @@
 import type { RefObject } from "react"
 
 interface Props {
-    choice : String
+    choice : string
+    index : number
     websocketRef : RefObject<WebSocket|null>
 }
 
 
 
-export default function ChoiceComp({choice, websocketRef }:Props) {
+export default function ChoiceComp({choice, index, websocketRef }:Props) {
     
     function handleOnClick(event : React.MouseEvent) {
         event.preventDefault()
         websocketRef.current?.send(JSON.stringify({
             messageType : "VOTE",
             data: {
-                choice : choice
+                choiceIndex : index
             }
         }))
     }
